@@ -66,7 +66,7 @@ html5QrCode.start(
 async function checkTicket(ticketCode) {
     try {
         // Using Google Apps Script as a proxy (this is the only part needing GAS)
-        const response = await fetch('https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec?code=' + encodeURIComponent(ticketCode));
+        const response = await fetch('https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbwRert2PrsWqtcoL8uc6Sg9EK-76F1qGdTM4XYCOJXMhkCxwZkgb_R0H-CGM6zw3ulY/exec/exec?code=' + encodeURIComponent(ticketCode));
         const data = await response.json();
         return data;
     } catch (error) {
@@ -76,7 +76,7 @@ async function checkTicket(ticketCode) {
 
 async function updateStats() {
     try {
-        const response = await fetch('https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec?action=stats');
+        const response = await fetch('https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbwRert2PrsWqtcoL8uc6Sg9EK-76F1qGdTM4XYCOJXMhkCxwZkgb_R0H-CGM6zw3ulY/exec/exec?action=stats');
         const data = await response.json();
         document.getElementById('stats').innerHTML = `Entered: ${data.used} / ${data.total}`;
     } catch(e) {}
