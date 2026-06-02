@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
     <title>Event Ticket Scanner</title>
-    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -12,7 +12,6 @@
             padding: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            transition: background-color 0.3s;
         }
         .container {
             max-width: 600px;
@@ -22,18 +21,8 @@
             padding: 25px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
-        h1 {
-            margin: 0 0 5px 0;
-            color: #333;
-            text-align: center;
-            font-size: 28px;
-        }
-        .subtitle {
-            text-align: center;
-            color: #888;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
+        h1 { margin: 0 0 5px 0; color: #333; text-align: center; font-size: 28px; }
+        .subtitle { text-align: center; color: #888; margin-bottom: 20px; font-size: 14px; }
         .stats {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -44,71 +33,33 @@
             justify-content: space-between;
             text-align: center;
         }
-        .stat-box {
-            flex: 1;
-        }
-        .stat-number {
-            font-size: 36px;
-            font-weight: bold;
-        }
-        .stat-label {
-            font-size: 12px;
-            opacity: 0.9;
-            margin-top: 5px;
-        }
-        #reader {
-            width: 100%;
-            margin: 20px 0;
-            border-radius: 10px;
-            overflow: hidden;
-        }
+        .stat-box { flex: 1; }
+        .stat-number { font-size: 36px; font-weight: bold; }
+        .stat-label { font-size: 12px; opacity: 0.9; margin-top: 5px; }
+        #reader { width: 100%; margin: 20px 0; border-radius: 10px; overflow: hidden; }
+        #reader video { width: 100%; border-radius: 10px; }
         #result {
-            padding: 30px;
+            padding: 25px;
             margin: 15px 0;
             border-radius: 12px;
             text-align: center;
             font-weight: bold;
-            font-size: 24px;
-            transition: all 0.3s;
+            font-size: 22px;
         }
-        .success {
-            background: #4CAF50;
-            color: white;
-            animation: pulse 0.5s;
-        }
-        .error {
-            background: #f44336;
-            color: white;
-            animation: shake 0.5s;
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
-        }
-        .button-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
+        .success { background: #4CAF50; color: white; }
+        .error { background: #f44336; color: white; }
         button {
-            flex: 1;
-            padding: 12px;
+            width: 100%;
+            padding: 14px;
             background: #667eea;
             color: white;
             border: none;
             border-radius: 8px;
             font-size: 16px;
             cursor: pointer;
+            margin-top: 10px;
         }
-        button:hover {
-            background: #5a67d8;
-        }
+        button:hover { background: #5a67d8; }
         .info {
             background: #e3f2fd;
             padding: 12px;
@@ -118,24 +69,22 @@
             text-align: center;
             color: #1976d2;
         }
+        .status-led {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .status-green { background: #4CAF50; }
+        .status-red { background: #f44336; }
         progress {
             width: 100%;
-            height: 25px;
-            border-radius: 15px;
+            height: 20px;
+            border-radius: 10px;
             overflow: hidden;
             margin: 10px 0;
         }
-        progress::-webkit-progress-bar { background-color: #f0f0f0; }
-        progress::-webkit-progress-value { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .status-led {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-        .status-green { background: #4CAF50; box-shadow: 0 0 5px #4CAF50; }
-        .status-red { background: #f44336; box-shadow: 0 0 5px #f44336; }
     </style>
 </head>
 <body>
@@ -144,18 +93,9 @@
     <div class="subtitle">Scan tickets at the entrance</div>
     
     <div class="stats">
-        <div class="stat-box">
-            <div class="stat-number" id="total">---</div>
-            <div class="stat-label">Total Tickets</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-number" id="used">---</div>
-            <div class="stat-label">Entered</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-number" id="remaining">---</div>
-            <div class="stat-label">Remaining</div>
-        </div>
+        <div class="stat-box"><div class="stat-number" id="total">---</div><div class="stat-label">Total</div></div>
+        <div class="stat-box"><div class="stat-number" id="used">---</div><div class="stat-label">Entered</div></div>
+        <div class="stat-box"><div class="stat-number" id="remaining">---</div><div class="stat-label">Remaining</div></div>
     </div>
     
     <progress id="progress" value="0" max="100"></progress>
@@ -163,91 +103,100 @@
     <div id="reader"></div>
     <div id="result"></div>
     
-    <div class="button-group">
-        <button onclick="location.reload()">🔄 Reset Scanner</button>
-    </div>
+    <button onclick="startScanner()">📷 Start Camera</button>
+    <button onclick="stopScanner()">⏹️ Stop Camera</button>
     
     <div class="info">
         <span class="status-led status-green"></span> Green = Valid Entry<br>
-        <span class="status-led status-red"></span> Red = Invalid or Already Used<br>
-        📱 Point camera at QR code
+        <span class="status-led status-red"></span> Red = Invalid or Used<br>
+        1️⃣ Click "Start Camera"<br>
+        2️⃣ Grant camera permission<br>
+        3️⃣ Scan QR code
     </div>
 </div>
 
 <script>
 // ============================================
-// CONFIGURATION - UPDATE THIS WITH YOUR URL
+// IMPORTANT: Replace with your Apps Script URL
 // ============================================
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbz-w8aqecl5_560g105H7D8gtMsn2WSlaRNotkfuBCVMGEONKS-dEdCyCggLm8euWyYGQ/exec/exec';
 // ============================================
 
-let lastScan = '';
-let isScanning = false;
 let html5QrCode = null;
+let isScanning = false;
+let lastScan = '';
 
-// Start scanner
-const html5QrCode = new Html5Qrcode("reader");
-html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 250, height: 250 } },
-    (decodedText) => {
-        if (decodedText === lastScan) return;
-        lastScan = decodedText;
-        
-        // Validate the ticket
-        validateTicket(decodedText);
-        
-        setTimeout(() => { lastScan = ''; }, 2000);
+async function startScanner() {
+    if (isScanning) {
+        alert("Scanner is already running");
+        return;
     }
-).catch(err => {
-    console.error('Camera error:', err);
-    document.getElementById('result').innerHTML = '❌ Camera error. Please check permissions.';
-    document.getElementById('result').className = 'error';
-});
+    
+    try {
+        html5QrCode = new Html5Qrcode("reader");
+        await html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 300, height: 300 } },
+            (decodedText) => {
+                if (decodedText === lastScan) return;
+                lastScan = decodedText;
+                validateTicket(decodedText);
+                setTimeout(() => { lastScan = ''; }, 2000);
+            },
+            (error) => { console.log("Scanning...", error); }
+        );
+        isScanning = true;
+        document.getElementById('result').innerHTML = '✅ Camera ready - Scan a QR code';
+        document.getElementById('result').className = '';
+    } catch (err) {
+        console.error("Camera error:", err);
+        document.getElementById('result').innerHTML = '❌ Camera error: ' + err.message + '. Make sure you clicked Allow.';
+        document.getElementById('result').className = 'error';
+    }
+}
 
-// Function to validate ticket against Google Sheet
+async function stopScanner() {
+    if (html5QrCode && isScanning) {
+        await html5QrCode.stop();
+        html5QrCode.clear();
+        isScanning = false;
+        document.getElementById('result').innerHTML = '⏹️ Scanner stopped';
+        document.getElementById('result').className = '';
+    }
+}
+
 async function validateTicket(ticketCode) {
     const resultDiv = document.getElementById('result');
-    
     try {
         const response = await fetch(APPS_SCRIPT_URL + '?code=' + encodeURIComponent(ticketCode));
         const data = await response.json();
         
-        resultDiv.textContent = data.message;
+        resultDiv.innerHTML = data.message;
         resultDiv.className = data.status === 'success' ? 'success' : 'error';
         
-        // Flash background color
+        // Flash background
         document.body.style.backgroundColor = data.status === 'success' ? '#4CAF50' : '#f44336';
-        setTimeout(() => {
-            document.body.style.backgroundColor = '';
-        }, 500);
+        setTimeout(() => { document.body.style.backgroundColor = ''; }, 500);
         
-        // Update stats after successful scan
-        if (data.status === 'success') {
-            updateStats();
-        }
+        if (data.status === 'success') updateStats();
         
-        // Clear result after 3 seconds
         setTimeout(() => {
             if (resultDiv.className !== '') {
                 resultDiv.className = '';
-                resultDiv.textContent = '';
+                resultDiv.innerHTML = data.status === 'success' ? '✅ Ready for next scan' : '⚠️ Try another ticket';
             }
-        }, 3000);
-        
+        }, 2500);
     } catch (error) {
         console.error('Validation error:', error);
-        resultDiv.textContent = '❌ Connection error. Check internet.';
+        resultDiv.innerHTML = '❌ Connection error. Check internet.';
         resultDiv.className = 'error';
     }
 }
 
-// Function to update statistics
 async function updateStats() {
     try {
         const response = await fetch(APPS_SCRIPT_URL + '?action=stats');
         const data = await response.json();
-        
         document.getElementById('total').textContent = data.total;
         document.getElementById('used').textContent = data.used;
         document.getElementById('remaining').textContent = data.total - data.used;
@@ -258,9 +207,11 @@ async function updateStats() {
     }
 }
 
-// Update stats every 10 seconds
-updateStats();
-setInterval(updateStats, 10000);
+// Auto-start scanner when page loads
+window.addEventListener('load', () => {
+    updateStats();
+    setTimeout(() => startScanner(), 500);
+});
 </script>
 </body>
 </html>
