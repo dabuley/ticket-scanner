@@ -3,7 +3,8 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
     <title>Event Ticket Scanner</title>
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- Use a more reliable QR library -->
+    <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -36,8 +37,21 @@
         .stat-box { flex: 1; }
         .stat-number { font-size: 36px; font-weight: bold; }
         .stat-label { font-size: 12px; opacity: 0.9; margin-top: 5px; }
-        #reader { width: 100%; margin: 20px 0; border-radius: 10px; overflow: hidden; }
-        #reader video { width: 100%; border-radius: 10px; }
+        #video-preview {
+            width: 100%;
+            max-width: 500px;
+            height: auto;
+            margin: 20px auto;
+            display: block;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+        }
         #result {
             padding: 25px;
             margin: 15px 0;
@@ -48,18 +62,6 @@
         }
         .success { background: #4CAF50; color: white; }
         .error { background: #f44336; color: white; }
-        button {
-            width: 100%;
-            padding: 14px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        button:hover { background: #5a67d8; }
         .info {
             background: #e3f2fd;
             padding: 12px;
@@ -85,6 +87,34 @@
             overflow: hidden;
             margin: 10px 0;
         }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover { background: #5a67d8; }
+        button:active { transform: scale(0.98); }
+        .flex-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .flex-buttons button {
+            flex: 1;
+        }
+        .scan-guide {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -100,18 +130,26 @@
     
     <progress id="progress" value="0" max="100"></progress>
     
-    <div id="reader"></div>
+    <div id="video-preview"></div>
     <div id="result"></div>
     
-    <button onclick="startScanner()">📷 Start Camera</button>
-    <button onclick="stopScanner()">⏹️ Stop Camera</button>
+    <div class="flex-buttons">
+        <button onclick="startScanner()">📷 Start Camera</button>
+        <button onclick="stopScanner()">⏹️ Stop</button>
+    </div>
+    
+    <div class="scan-guide">
+        🎯 <strong>Tips for scanning:</strong><br>
+        • Hold camera 4-6 inches from QR code<br>
+        • Make sure QR code is well-lit<br>
+        • Center the code in the camera view<br>
+        • Wait 1-2 seconds for detection
+    </div>
     
     <div class="info">
         <span class="status-led status-green"></span> Green = Valid Entry<br>
-        <span class="status-led status-red"></span> Red = Invalid or Used<br>
-        1️⃣ Click "Start Camera"<br>
-        2️⃣ Grant camera permission<br>
-        3️⃣ Scan QR code
+        <span class="status-led status-red"></span> Red = Invalid or Already Used<br>
+        ✅ Works best on Chrome browser
     </div>
 </div>
 
@@ -122,7 +160,8 @@
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbz-w8aqecl5_560g105H7D8gtMsn2WSlaRNotkfuBCVMGEONKS-dEdCyCggLm8euWyYGQ/exec/exec';
 // ============================================
 
-let html5QrCode = null;
+let selectedDeviceId = null;
+let codeReader = null;
 let isScanning = false;
 let lastScan = '';
 
@@ -133,33 +172,53 @@ async function startScanner() {
     }
     
     try {
-        html5QrCode = new Html5Qrcode("reader");
-        await html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 300, height: 300 } },
-            (decodedText) => {
-                if (decodedText === lastScan) return;
-                lastScan = decodedText;
-                validateTicket(decodedText);
-                setTimeout(() => { lastScan = ''; }, 2000);
-            },
-            (error) => { console.log("Scanning...", error); }
+        codeReader = new ZXing.BrowserMultiFormatReader();
+        
+        // Get all available cameras
+        const videoInputDevices = await codeReader.listVideoInputDevices();
+        
+        if (videoInputDevices.length === 0) {
+            throw new Error("No camera found");
+        }
+        
+        // Prefer back camera (environment facing)
+        const backCamera = videoInputDevices.find(device => 
+            device.label.toLowerCase().includes('back') || 
+            device.label.toLowerCase().includes('environment')
         );
+        
+        selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
+        
+        const previewElement = document.getElementById('video-preview');
+        
+        await codeReader.decodeFromVideoDevice(selectedDeviceId, previewElement, (result, err) => {
+            if (result) {
+                const decodedText = result.getText();
+                if (decodedText !== lastScan) {
+                    lastScan = decodedText;
+                    validateTicket(decodedText);
+                    setTimeout(() => { lastScan = ''; }, 3000);
+                }
+            }
+        });
+        
         isScanning = true;
         document.getElementById('result').innerHTML = '✅ Camera ready - Scan a QR code';
         document.getElementById('result').className = '';
+        
     } catch (err) {
         console.error("Camera error:", err);
-        document.getElementById('result').innerHTML = '❌ Camera error: ' + err.message + '. Make sure you clicked Allow.';
+        document.getElementById('result').innerHTML = '❌ Camera error: ' + err.message;
         document.getElementById('result').className = 'error';
     }
 }
 
 async function stopScanner() {
-    if (html5QrCode && isScanning) {
-        await html5QrCode.stop();
-        html5QrCode.clear();
+    if (codeReader && isScanning) {
+        await codeReader.reset();
+        codeReader = null;
         isScanning = false;
+        document.getElementById('video-preview').innerHTML = '';
         document.getElementById('result').innerHTML = '⏹️ Scanner stopped';
         document.getElementById('result').className = '';
     }
@@ -167,6 +226,20 @@ async function stopScanner() {
 
 async function validateTicket(ticketCode) {
     const resultDiv = document.getElementById('result');
+    
+    // Play beep sound (optional - works in modern browsers)
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.frequency.value = 880;
+        gainNode.gain.value = 0.1;
+        oscillator.start();
+        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.5);
+    } catch(e) { console.log("Beep not supported"); }
+    
     try {
         const response = await fetch(APPS_SCRIPT_URL + '?code=' + encodeURIComponent(ticketCode));
         const data = await response.json();
@@ -176,16 +249,22 @@ async function validateTicket(ticketCode) {
         
         // Flash background
         document.body.style.backgroundColor = data.status === 'success' ? '#4CAF50' : '#f44336';
-        setTimeout(() => { document.body.style.backgroundColor = ''; }, 500);
+        setTimeout(() => { document.body.style.backgroundColor = ''; }, 600);
         
-        if (data.status === 'success') updateStats();
+        if (data.status === 'success') {
+            updateStats();
+            // Vibrate on success (if supported)
+            if (navigator.vibrate) navigator.vibrate(200);
+        }
         
+        // Clear result after 2.5 seconds
         setTimeout(() => {
             if (resultDiv.className !== '') {
                 resultDiv.className = '';
-                resultDiv.innerHTML = data.status === 'success' ? '✅ Ready for next scan' : '⚠️ Try another ticket';
+                resultDiv.innerHTML = '📷 Ready for next scan';
             }
         }, 2500);
+        
     } catch (error) {
         console.error('Validation error:', error);
         resultDiv.innerHTML = '❌ Connection error. Check internet.';
@@ -207,10 +286,17 @@ async function updateStats() {
     }
 }
 
-// Auto-start scanner when page loads
+// Auto-start when page loads
 window.addEventListener('load', () => {
     updateStats();
     setTimeout(() => startScanner(), 500);
+});
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    if (codeReader && isScanning) {
+        codeReader.reset();
+    }
 });
 </script>
 </body>
